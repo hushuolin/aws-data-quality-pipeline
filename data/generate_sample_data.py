@@ -7,8 +7,6 @@ import numpy as np
 
 # Directory to save the files
 output_directory = "data"
-if not os.path.exists(output_directory):
-    os.makedirs(output_directory)
 
 # Function to generate a random date
 def random_date(start, end):

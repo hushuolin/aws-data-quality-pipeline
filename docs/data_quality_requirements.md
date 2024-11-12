@@ -1,97 +1,85 @@
 # Data Quality Requirements for Fintech Data Pipeline
 
-This document outlines the data quality requirements for the fintech data pipeline. These requirements focus on schema validation, data consistency, data validity, scalability, error handling, and alerting to ensure the robustness, reliability, and efficiency of the pipeline.
+This document outlines the data quality requirements for the fintech data pipeline. These requirements are designed to ensure robustness, reliability, and scalability of the pipeline under various data conditions simulated by the sample datasets.
 
-## 1. Schema Validation Requirements
+## 1. Schema Requirements
 
-### **Objective**
-Ensure all incoming datasets conform to the expected schema to maintain consistency and reliability in the data pipeline.
+### Schema Validation
+Ensure that all incoming datasets conform to the expected schema, allowing for consistency and reliability throughout the data pipeline.
 
 - **Mandatory Fields**:
   - Each record must contain the following fields: `Profile-ID`, `Consumer-ID`, `Customer-Name`, `Session-ID`, `Transaction-Reference`, `Transaction-Amount`, `Currency`, `Transaction-Type`, `Transaction-Status`, `Account-Number`, `Account-Balance`, `Merchant-ID`, `Merchant-Name`, `Fraud-Flag`, `Timestamp`.
-  - Missing mandatory fields will trigger alerts and be logged for further action.
+  - Missing mandatory fields must be logged, and an alert should be generated to notify the data engineering team for immediate remediation.
 
-- **Field-Level Requirements**:
-  - **Data Types**:
-    - Fields like `Profile-ID`, `Consumer-ID`, `Session-ID`, and `Transaction-Reference` must be strings.
-    - `Transaction-Amount` and `Account-Balance` must be numerical values (`float` or `decimal`).
-    - `Timestamp` must be in `YYYY-MM-DD HH:MM:SS` format.
-  - **Validation Rules**:
-    - `Transaction-Amount` must be greater than zero.
-    - `Transaction-Status` must be one of the following: `Success`, `Failed`, `Pending`.
+- **Field-Level Schema Updates**:
+  - Any new fields added (e.g., `Location` in `2_new_field.csv`) must be detected by the system. Such additions should be logged, evaluated for downstream impact, and documented for possible future integration.
+  - Missing fields must be flagged to prevent inconsistencies, and alerts should be generated if these fields are mandatory.
 
-- **New and Removed Fields**:
-  - **New Fields**: Any new fields added must be properly identified and documented.
-  - **Missing Fields**: If mandatory fields are missing, the dataset will be flagged and logged, and processing will be paused.
+- **Data Type Validation**:
+  - Each field must match the expected data type. For instance, `Transaction-Amount` should always be a numerical value (`float`). Any changes in data type (e.g., converting `Transaction-Amount` to string as in `4_data_type_change.csv`) must be flagged, logged, and an alert must be generated for resolution.
+
+### Schema Change Detection and Alerting
+Detect and respond to schema changes in the incoming data to prevent downstream failures and maintain pipeline integrity.
+
+- **Schema Change Detection**:
+  - AWS Glue Crawler should automatically detect schema changes such as new fields or missing fields and update the Glue Table metadata accordingly.
+  - Alerts must be generated for critical schema changes, including missing mandatory fields, incorrect data types, and unexpected new fields that could impact downstream processes.
+  - Non-critical schema changes (e.g., optional new fields or changes in field order) should be logged for audit purposes without immediate alerts.
+
+- **Notification System**:
+  - Alerts should be sent via AWS SNS or email to notify relevant stakeholders of schema changes. These alerts should include detailed information to help stakeholders assess the impact and take corrective actions if needed.
 
 ## 2. Data Consistency Requirements
 
-### **Objective**
-Ensure data consistency across related fields and maintain integrity between different pieces of data.
+### Cross-Field Validation
+Ensure data consistency across related fields and maintain the integrity of all records processed by the pipeline.
+
+- **Cross-Field Relationships**:
+  - Relationships between fields, such as `Merchant-ID` and `Merchant-Name`, must be consistent across records (validated using `9_cross_field_consistency.csv`). Any discrepancies must be flagged and addressed through an automated or manual resolution process.
 
 - **Uniqueness Constraints**:
-  - `Transaction-Reference` must be unique within each dataset. Duplicate references should trigger alerts.
+  - Fields like `Transaction-Reference` must be unique within each dataset to prevent duplicate transactions. Duplicate entries must be flagged and logged, and corrective actions should be taken to either correct or remove duplicates.
 
 - **Field Dependencies**:
-  - For debit transactions (`Transaction-Type` is `Debit`), `Transaction-Amount` must be reflected in the `Account-Balance`.
-  - If `Transaction-Status` is `Failed`, there should be no impact on `Account-Balance`.
-
-- **Cross-Field Validation**:
-  - `Merchant-ID` and `Merchant-Name` must always be consistent.
+  - For debit transactions (`Transaction-Type` is `Debit`), ensure that `Transaction-Amount` accurately affects `Account-Balance`.
 
 ## 3. Data Validity Requirements
 
-### **Objective**
-Ensure each field contains valid data that conforms to expected formats and business logic.
+### Business Logic Validation
+Ensure all data fields contain valid values that conform to business rules and requirements.
 
 - **Data Type Validity**:
-  - **Invalid Data Types**: Fields like `Transaction-Amount` containing invalid values (e.g., `NaN`) must be flagged and logged.
-  - **Empty Fields**: Mandatory fields should not contain empty values.
+  - Fields like `Transaction-Amount` should not contain invalid values such as `NaN` (as seen in `7_invalid_data.csv`). These values must be logged, and alerts should be triggered for data correction.
+  - **Empty Fields**: Mandatory fields must not be empty. Any records with empty mandatory fields (e.g., `5_empty.csv`) should be logged with a warning, and an alert should be triggered.
 
-- **Business Logic Validation**:
-  - **Transaction Amount**: Negative `Transaction-Amount` is only allowed for refund transactions.
-  - **Fraud Handling**: If `Fraud-Flag` is marked `True`, the transaction must be flagged for additional review.
+- **Transaction-Specific Rules**:
+  - **Transaction Amount**: `Transaction-Amount` must be greater than zero for purchases and should be positive for refunds.
+  - **Transaction Status**: The `Transaction-Status` field must have valid values (`Success`, `Failed`, or `Pending`). Any other values should be flagged for review.
 
-## 4. Data Scalability and Performance Requirements
+## 4. Scalability and Performance Requirements
 
-### **Objective**
-Ensure the data pipeline can handle high volumes of data while maintaining performance.
+### High-Volume Data Handling
+Ensure that the data pipeline is capable of handling high volumes of data efficiently, without performance degradation.
 
-- **High-Volume Data Handling**:
-  - The data pipeline must handle datasets with up to 100,000 records without performance degradation.
+- **Scalability Requirements**:
+  - The pipeline should handle datasets of up to 100,000 records (e.g., `6_high_volume.csv`) without any degradation in performance.
+  - Processing times for large datasets must meet defined performance benchmarks to ensure scalability during peak loads. These benchmarks should be documented, monitored, and optimized based on historical data processing metrics.
 
-- **Processing Time Requirements**:
-  - **Small Datasets**: Processing must complete within 1 minute for datasets up to 1,000 records.
-  - **Large Datasets**: Processing must complete within 5 minutes for datasets of up to 100,000 records.
+## 5. Error Handling and Logging Requirements
 
-- **Logging and Monitoring**:
-  - Log all errors, warnings, and significant changes, including validation issues.
+### Error Logging
+Define how data quality issues are managed and communicated to ensure the reliability and robustness of the system.
 
-## 5. Schema Change Detection and Alerting Requirements
+- **Error Logging**:
+  - All validation errors, warnings, and significant schema changes must be logged for audit and review purposes. This includes validation issues such as missing mandatory fields, incorrect data types, and data inconsistencies.
 
-### **Objective**
-Detect changes in the incoming data schema and generate alerts for further analysis.
+### Alerting Mechanisms
+Define how critical data quality issues are communicated to stakeholders.
 
-- **Schema Change Detection**:
-  - AWS Glue Crawler should automatically detect changes in schema and update Glue Table metadata accordingly.
-
-- **Notification System**:
-  - All schema changes must trigger alerts, routed to the data engineering team via AWS SNS or email notifications.
-  - Missing critical fields or unexpected fields must trigger high-priority alerts.
-
-## 6. Error Handling and Alerting Requirements
-
-### **Objective**
-Define how errors are managed and communicated to stakeholders to maintain system reliability.
-
-- **Logging**:
-  - **Schema Errors**: Log all schema validation errors, including missing fields or mismatched data types.
-  - **Validation Errors**: Record validation issues such as `NaN` in `Transaction-Amount` and generate alerts.
-
-- **Alerting**:
-  - **Immediate Alerts**: Generate alerts via AWS SNS or email for critical issues such as schema changes, validation failures, or duplicate transactions.
-  - **Error Thresholds**: If errors exceed a defined threshold (e.g., 5% of records), trigger an escalation process.
+- **Critical Alerts**:
+  - Alerts must be generated for critical issues such as missing mandatory fields, incorrect data types, or duplicate transactions. Alerts should be sent to stakeholders through multiple channels, such as email, SMS, or monitoring dashboards, to ensure timely response.
+  - If error thresholds are exceeded (e.g., more than 5% of records contain errors), an escalation process should be triggered to involve relevant stakeholders and ensure prompt resolution.
 
 ## Summary
-These data quality requirements ensure that the fintech data pipeline remains reliable, scalable, and compliant with business needs. They cover all aspects of data quality, including schema validation, data consistency, validity, scalability, schema change detection, error handling, and alerting.
+These data quality requirements ensure that the fintech data pipeline can detect schema changes, validate data consistency, and maintain scalability for handling high volumes of transactions. Each team involved, including data engineering and quality assurance, plays a vital role in ensuring these standards are upheld effectively. The sample datasets are designed to comprehensively test these requirements, ensuring that the data pipeline remains robust, reliable, and scalable under various real-world conditions.
 
