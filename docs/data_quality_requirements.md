@@ -1,4 +1,4 @@
-# Data Quality Requirements for Pipeline
+# Data Quality Requirements for Fintech Data Pipeline
 
 This document outlines the data quality requirements for the fintech data pipeline. These requirements focus on schema validation, data consistency, data validity, scalability, error handling, and alerting to ensure the robustness, reliability, and efficiency of the pipeline.
 
@@ -91,4 +91,7 @@ Define how errors are managed and communicated to stakeholders to maintain syste
 - **Alerting**:
   - **Immediate Alerts**: Generate alerts via AWS SNS or email for critical issues such as schema changes, validation failures, or duplicate transactions.
   - **Error Thresholds**: If errors exceed a defined threshold (e.g., 5% of records), trigger an escalation process.
+
+## Summary
+These data quality requirements ensure that the fintech data pipeline remains reliable, scalable, and compliant with business needs. They cover all aspects of data quality, including schema validation, data consistency, validity, scalability, schema change detection, error handling, and alerting.
 

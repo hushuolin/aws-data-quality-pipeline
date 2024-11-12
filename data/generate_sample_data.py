@@ -7,6 +7,8 @@ import numpy as np
 
 # Directory to save the files
 output_directory = "data"
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
 
 # Function to generate a random date
 def random_date(start, end):
@@ -33,20 +35,20 @@ def generate_baseline_data(num_records):
     if num_records <= 0:
         raise ValueError("Number of records must be greater than zero.")
     data = {
-        "Profile-ID": [random.randint(1000000, 9999999) for _ in range(num_records)],
+        "Profile-ID": [str(random.randint(1000000, 9999999)) for _ in range(num_records)],
         "Consumer-ID": [f"CUST-{random.randint(1000, 9999)}" for _ in range(num_records)],
         "Customer-Name": [random.choice(customer_names) for _ in range(num_records)],
         "Session-ID": [str(uuid.uuid4()) for _ in range(num_records)],
         "Transaction-Reference": [str(uuid.uuid4()) for _ in range(num_records)],
         "Transaction-Amount": [round(random.uniform(5.0, 500.0), 2) for _ in range(num_records)],
         "Currency": [random.choice(["USD", "EUR", "GBP", "JPY"]) for _ in range(num_records)],
-        "Transaction-Type": [random.choice(["Purchase", "Refund", "Transfer", "Withdrawal"]) for _ in range(num_records)],
-        "Transaction-Status": [random.choice(["Completed", "Pending", "Failed"]) for _ in range(num_records)],
+        "Transaction-Type": [random.choice(["Purchase", "Refund"]) for _ in range(num_records)],
+        "Transaction-Status": [random.choice(["Success", "Failed", "Pending"]) for _ in range(num_records)],
         "Account-Number": [f"ACC-{random.randint(100000, 999999)}" for _ in range(num_records)],
         "Account-Balance": [round(random.uniform(100.0, 10000.0), 2) for _ in range(num_records)],
         "Merchant-ID": [f"MER-{random.randint(1000, 9999)}" for _ in range(num_records)],
         "Merchant-Name": [random.choice(merchant_names) for _ in range(num_records)],
-        "Fraud-Flag": [random.choice(["Yes", "No"]) for _ in range(num_records)],
+        "Fraud-Flag": [random.choice([True, False]) for _ in range(num_records)],
         "Timestamp": [random_date(datetime(2022, 1, 1), datetime(2023, 1, 1)).strftime("%Y-%m-%d %H:%M:%S") for _ in range(num_records)],
     }
     return pd.DataFrame(data)
@@ -111,5 +113,16 @@ def generate_rapid_schema_changes(num_records):
 
 rapid_schema_change_data = generate_rapid_schema_changes(100)
 rapid_schema_change_data.to_csv(os.path.join(output_directory, "8_schema_changes.csv"), index=False)
+
+# 9. Cross-Field Consistency Check (Ensure Merchant-ID and Merchant-Name consistency)
+def generate_data_with_cross_field_consistency(num_records):
+    df = generate_baseline_data(num_records)
+    merchant_mapping = {f"MER-{i}": random.choice(merchant_names) for i in range(1000, 1015)}
+    df["Merchant-ID"] = [random.choice(list(merchant_mapping.keys())) for _ in range(num_records)]
+    df["Merchant-Name"] = df["Merchant-ID"].map(merchant_mapping)
+    return df
+
+cross_field_consistency_data = generate_data_with_cross_field_consistency(100)
+cross_field_consistency_data.to_csv(os.path.join(output_directory, "9_cross_field_consistency.csv"), index=False)
 
 print(f"Sample data files have been saved to '{output_directory}' directory.")

@@ -16,6 +16,7 @@ The following test matrix provides an overview of the testing scenarios covered 
 | Invalid Data Types      | `7_invalid_data.csv`    | Contains `NaN` in `Transaction-Amount`.                       | Error logged, and data flagged for review.                  |
 | High Volume Dataset     | `6_high_volume.csv`     | Contains 100,000 records to test scalability.                 | Data processed within acceptable performance limits.        |
 | Rapid Schema Changes    | `8_schema_changes.csv`  | Adds `New-Field-1` and `New-Field-2` to simulate frequent changes. | Changes handled, with proper logging and alerts.        |
+| Cross-Field Consistency | `9_cross_field_consistency.csv` | Ensures consistency between `Merchant-ID` and `Merchant-Name`. | Cross-field consistency validated without errors.           |
 
 ## Business Scenario
 
@@ -74,4 +75,12 @@ The sample datasets are designed to reflect the data needs of a typical fintech 
 - **Description**: Introduces two new fields (`New-Field-1` and `New-Field-2`) to simulate rapid schema changes.
 - **Purpose**: To evaluate how the system reacts to frequent schema modifications and whether proper logging and notifications are in place.
 - **Fields**: All baseline fields plus `New-Field-1` and `New-Field-2`.
+
+### 9. Cross-Field Consistency Check (`9_cross_field_consistency.csv`)
+- **Description**: Ensures consistency between `Merchant-ID` and `Merchant-Name` using a predefined mapping.
+- **Purpose**: To test the pipeline's ability to maintain cross-field consistency and validate relationships between related fields.
+- **Fields**: All baseline fields, with consistent mapping between `Merchant-ID` and `Merchant-Name`.
+
+## Summary
+These datasets cover a wide range of scenarios to thoroughly test the data pipeline's ability to validate schema integrity, data types, and consistency, handle errors gracefully, and manage high-volume data. Each dataset targets specific aspects of the data quality requirements, ensuring comprehensive testing for robustness, reliability, and scalability of the fintech data pipeline.
 
