@@ -1,86 +1,92 @@
 # Sample Data Documentation
 
-This document provides an overview of the sample datasets generated for testing purposes. Each dataset simulates different data scenarios that may occur in a fintech data pipeline. The goal is to validate the robustness, scalability, and adaptability of the data pipeline under a variety of realistic conditions.
+This document provides an overview of the sample datasets generated for testing the fintech data pipeline. Each dataset simulates different scenarios to validate the robustness, scalability, and adaptability of the data pipeline under various conditions.
 
 ## Test Matrix
 
-The following test matrix provides an overview of the testing scenarios covered by each sample dataset. This matrix helps ensure comprehensive testing of the data pipeline under different real-world conditions.
+The following matrix summarizes the test scenarios covered by each sample dataset, ensuring comprehensive testing of the pipeline under different real-world conditions.
 
-| Test Scenario           | Dataset File            | Description                                                   | Expected Outcome                                            |
-| ----------------------- | ----------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| Baseline Schema         | `1_baseline.csv`        | Tests the baseline schema with typical transaction data.      | Data processed correctly with no errors.                    |
-| New Field Added         | `2_new_field.csv`       | Adds `Location` field to simulate schema update.              | New field handled without errors.                           |
-| Missing Field           | `3_missing_field.csv`   | Removes `Transaction-Amount` to simulate missing data.        | Error logged, and alert sent for missing field.             |
-| Data Type Change        | `4_data_type_change.csv`| Converts `Transaction-Amount` to string type.                 | Type change detected, and appropriate handling applied.     |
-| Empty Dataset           | `5_empty.csv`           | Contains no records, only headers.                            | No processing, warning logged.                              |
-| Invalid Data Types      | `7_invalid_data.csv`    | Contains `NaN` in `Transaction-Amount`.                       | Error logged, and data flagged for review.                  |
-| High Volume Dataset     | `6_high_volume.csv`     | Contains 100,000 records to test scalability.                 | Data processed within acceptable performance limits.        |
-| Rapid Schema Changes    | `8_schema_changes.csv`  | Adds `New-Field-1` and `New-Field-2` to simulate frequent changes. | Changes handled, with proper logging and alerts.        |
-| Cross-Field Consistency | `9_cross_field_consistency.csv` | Ensures consistency between `Merchant-ID` and `Merchant-Name`. | Cross-field consistency validated without errors.           |
+| Test Scenario               | Dataset File               | Description                                                   | Expected Outcome                                            |
+| --------------------------- | -------------------------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| Baseline Schema             | `1_baseline.csv`           | Tests baseline schema with typical transaction data.          | Data processed correctly without errors.                    |
+| New Field Added             | `2_new_field.csv`          | Adds `Location` field to simulate schema update.              | New field handled without errors.                           |
+| Missing Field               | `3_missing_field.csv`      | Removes `Transaction-Amount` to simulate missing data.        | Error logged, alert generated for missing field.            |
+| Data Type Change            | `4_data_type_change.csv`   | Converts `Transaction-Amount` to string type.                 | Type change detected, handled appropriately.                |
+| Empty Dataset               | `5_empty.csv`              | Contains no records, only headers.                            | Warning logged, no processing performed.                    |
+| High Volume Dataset         | `6_high_volume.csv`        | Contains 100,000 records to test scalability.                 | Data processed within acceptable performance limits.        |
+| Invalid Data Types          | `7_invalid_data.csv`       | Contains `NaN` in `Transaction-Amount`.                       | Error logged, data flagged for review.                      |
+| Rapid Schema Changes        | `8_schema_changes.csv`     | Adds `New-Field-1` and `New-Field-2` to simulate frequent changes. | Changes handled with logging and alerts.                |
+| Cross-Field Consistency     | `9_cross_field_consistency.csv` | Introduces inconsistency between `Merchant-ID` and `Merchant-Name`. | Inconsistencies flagged, data corrected or logged.     |
+| Duplicate Records           | `10_duplicates.csv`        | Introduces duplicates in `Transaction-Reference`.             | Duplicate entries flagged and corrected or removed.         |
+| Field Dependency Testing    | `11_field_dependency.csv`  | Tests `Transaction-Amount` impact on `Account-Balance` for debits. | Incorrect balances flagged, corrections applied.        |
+| Invalid Transaction Status  | `12_invalid_status.csv`    | Contains invalid values in `Transaction-Status`.              | Invalid status values flagged for review and correction.    |
 
 ## Business Scenario
 
-The sample datasets are designed to reflect the data needs of a typical fintech company that provides digital financial services, such as peer-to-peer payments, digital wallets, and merchant payments. The company processes a large volume of transactions and needs to ensure data integrity, compliance, and scalability.
+The sample datasets are designed to reflect the data needs of a fintech company that handles digital financial services, such as peer-to-peer payments, digital wallets, and merchant payments. These datasets help validate the system's ability to maintain data integrity, ensure compliance, and handle scalability challenges.
 
 ### Key Business Operations
-1. **Peer-to-Peer (P2P) Payments**: Customers can send and receive money instantly using unique identifiers (`Consumer-ID`, `Profile-ID`). These transactions are reflected in fields like `Transaction-Amount`, `Transaction-Type`, and `Transaction-Status`.
+1. **Peer-to-Peer Payments**: Transactions between customers using unique identifiers (`Consumer-ID`, `Profile-ID`). Key fields include `Transaction-Amount`, `Transaction-Type`, and `Transaction-Status`.
+2. **Merchant Payments**: Payments for goods and services represented by `Merchant-ID` and `Merchant-Name`. Transactions contain details like `Currency` and `Location`.
+3. **Digital Wallet Management**: Users maintain balances (`Account-Balance`) linked to `Account-Number`. Transactions modify these balances, tracked using `Transaction-Reference` and `Timestamp`.
 
-2. **Merchant Payments**: Users can pay for products and services from different merchants, represented by `Merchant-ID` and `Merchant-Name`. Transactions also contain details such as `Currency` and `Location`.
-
-3. **Digital Wallet Management**: Users maintain digital wallets, and their balance is represented by `Account-Balance`. Transactions that modify these balances are logged with details like `Account-Number`, `Transaction-Reference`, and `Timestamp`.
-
-### Challenges Addressed by the Sample Data
-- **Data Consistency**: The datasets test different aspects of data consistency, such as missing fields, new fields, and data type changes. This helps simulate real-world challenges where data inconsistencies might occur during system integration or upgrades.
-- **Scalability**: The high-volume dataset (`6_high_volume.csv`) helps test the scalability of the data pipeline when processing a large number of transactions, ensuring that the system can handle peak loads.
-- **Compliance and Robustness**: The datasets with invalid data types (`7_invalid_data.csv`) and empty records (`5_empty.csv`) help validate that the system can handle unexpected scenarios gracefully, which is crucial for regulatory compliance and customer trust.
+### Challenges Addressed
+- **Data Consistency**: The datasets test consistency by simulating scenarios such as missing fields, new fields, data type changes, and cross-field inconsistencies, reflecting real-world challenges during integration or system upgrades.
+- **Scalability**: The high-volume dataset (`6_high_volume.csv`) tests the pipeline's ability to handle peak loads efficiently.
+- **Error Handling**: Datasets with invalid data types (`7_invalid_data.csv`), empty records (`5_empty.csv`), duplicate entries (`10_duplicates.csv`), and invalid transaction statuses (`12_invalid_status.csv`) validate that the system gracefully handles unexpected scenarios.
+- **Field Dependency**: The dataset (`11_field_dependency.csv`) tests the proper handling of dependencies between fields, such as how debit transactions impact `Account-Balance`.
 
 ## Sample Datasets Overview
 
 ### 1. Baseline Schema (`1_baseline.csv`)
-- **Description**: Contains the baseline schema with typical transaction data.
-- **Purpose**: Acts as the reference dataset for comparison against other modified datasets.
+- **Purpose**: Acts as a reference dataset with typical transaction data for comparison.
 - **Fields**: `Profile-ID`, `Consumer-ID`, `Customer-Name`, `Session-ID`, `Transaction-Reference`, `Transaction-Amount`, `Currency`, `Transaction-Type`, `Transaction-Status`, `Account-Number`, `Account-Balance`, `Merchant-ID`, `Merchant-Name`, `Fraud-Flag`, `Timestamp`.
 
 ### 2. New Field Added (`2_new_field.csv`)
-- **Description**: Adds a new `Location` field to simulate schema updates.
-- **Purpose**: To test the pipeline's ability to handle new fields without causing errors.
+- **Purpose**: Tests the system's ability to handle new fields (`Location`) seamlessly.
 - **Fields**: All baseline fields plus `Location`.
 
 ### 3. Missing Field (`3_missing_field.csv`)
-- **Description**: Removes the `Transaction-Amount` field to simulate a scenario where a critical field is missing.
-- **Purpose**: To test how the system handles missing mandatory fields and if appropriate alerts are raised.
+- **Purpose**: Tests how the pipeline handles missing mandatory fields (`Transaction-Amount`).
 - **Fields**: All baseline fields except `Transaction-Amount`.
 
 ### 4. Data Type Change (`4_data_type_change.csv`)
-- **Description**: Converts the `Transaction-Amount` field to a string data type.
-- **Purpose**: To verify the system's robustness when data types change unexpectedly.
+- **Purpose**: Verifies robustness when `Transaction-Amount` changes from numeric to string.
 - **Fields**: All baseline fields, with `Transaction-Amount` as a string.
 
 ### 5. Empty Dataset (`5_empty.csv`)
-- **Description**: Contains no records but retains the column headers.
-- **Purpose**: To test the pipeline’s behavior when an empty dataset is provided, ensuring that the system does not fail unexpectedly.
-- **Fields**: All baseline fields, but no data.
+- **Purpose**: Tests pipeline response to empty datasets with headers only.
+- **Fields**: All baseline fields, no data.
 
-### 6. Invalid Data Types (`7_invalid_data.csv`)
-- **Description**: Contains an invalid value (`NaN`) in the `Transaction-Amount` field to simulate data corruption or entry errors.
-- **Purpose**: To assess the system’s resilience to data quality issues and ensure proper error handling and alerts.
-- **Fields**: All baseline fields, with `Transaction-Amount` containing an invalid value.
-
-### 7. High Volume Dataset (`6_high_volume.csv`)
-- **Description**: Contains 100,000 records to simulate high-volume transaction data.
-- **Purpose**: To evaluate the performance and scalability of the data pipeline under heavy data load.
+### 6. High Volume Dataset (`6_high_volume.csv`)
+- **Purpose**: Evaluates performance under heavy load with 100,000 records.
 - **Fields**: All baseline fields.
 
+### 7. Invalid Data Types (`7_invalid_data.csv`)
+- **Purpose**: Tests system resilience to invalid values (`NaN` in `Transaction-Amount`).
+- **Fields**: All baseline fields, with an invalid value in `Transaction-Amount`.
+
 ### 8. Rapid Schema Changes (`8_schema_changes.csv`)
-- **Description**: Introduces two new fields (`New-Field-1` and `New-Field-2`) to simulate rapid schema changes.
-- **Purpose**: To evaluate how the system reacts to frequent schema modifications and whether proper logging and notifications are in place.
+- **Purpose**: Tests frequent schema modifications with new fields (`New-Field-1`, `New-Field-2`).
 - **Fields**: All baseline fields plus `New-Field-1` and `New-Field-2`.
 
-### 9. Cross-Field Consistency Check (`9_cross_field_consistency.csv`)
-- **Description**: Ensures consistency between `Merchant-ID` and `Merchant-Name` using a predefined mapping.
-- **Purpose**: To test the pipeline's ability to maintain cross-field consistency and validate relationships between related fields.
-- **Fields**: All baseline fields, with consistent mapping between `Merchant-ID` and `Merchant-Name`.
+### 9. Cross-Field Consistency (`9_cross_field_consistency.csv`)
+- **Purpose**: Tests the detection and handling of inconsistencies between `Merchant-ID` and `Merchant-Name`.
+- **Fields**: All baseline fields, with deliberate cross-field inconsistencies.
+
+### 10. Duplicate Records (`10_duplicates.csv`)
+- **Purpose**: Tests the detection and handling of duplicate records in `Transaction-Reference`.
+- **Fields**: All baseline fields, with deliberate duplicates.
+
+### 11. Field Dependency Testing (`11_field_dependency.csv`)
+- **Purpose**: Tests `Transaction-Amount` impact on `Account-Balance` for debit transactions.
+- **Fields**: All baseline fields, with adjustments made to `Account-Balance` based on `Transaction-Amount` for debit transactions.
+
+### 12. Invalid Transaction Status (`12_invalid_status.csv`)
+- **Purpose**: Tests handling of invalid values in `Transaction-Status`.
+- **Fields**: All baseline fields, with invalid values in `Transaction-Status`.
 
 ## Summary
-These datasets cover a wide range of scenarios to thoroughly test the data pipeline's ability to validate schema integrity, data types, and consistency, handle errors gracefully, and manage high-volume data. Each dataset targets specific aspects of the data quality requirements, ensuring comprehensive testing for robustness, reliability, and scalability of the fintech data pipeline.
+The sample datasets provide a comprehensive basis for testing the fintech data pipeline's ability to maintain data integrity, handle schema changes, and process large volumes effectively. Each dataset targets specific data quality aspects, ensuring the system meets robustness, reliability, and scalability requirements.
 
+For further information, contact the data engineering or quality assurance team.

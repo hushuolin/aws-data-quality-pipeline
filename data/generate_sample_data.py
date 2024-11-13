@@ -40,7 +40,7 @@ def generate_baseline_data(num_records):
         "Transaction-Reference": [str(uuid.uuid4()) for _ in range(num_records)],
         "Transaction-Amount": [round(random.uniform(5.0, 500.0), 2) for _ in range(num_records)],
         "Currency": [random.choice(["USD", "EUR", "GBP", "JPY"]) for _ in range(num_records)],
-        "Transaction-Type": [random.choice(["Purchase", "Refund"]) for _ in range(num_records)],
+        "Transaction-Type": [random.choice(["Purchase", "Refund", "Debit"]) for _ in range(num_records)],
         "Transaction-Status": [random.choice(["Success", "Failed", "Pending"]) for _ in range(num_records)],
         "Account-Number": [f"ACC-{random.randint(100000, 999999)}" for _ in range(num_records)],
         "Account-Balance": [round(random.uniform(100.0, 10000.0), 2) for _ in range(num_records)],
@@ -112,15 +112,49 @@ def generate_rapid_schema_changes(num_records):
 rapid_schema_change_data = generate_rapid_schema_changes(100)
 rapid_schema_change_data.to_csv(os.path.join(output_directory, "8_schema_changes.csv"), index=False)
 
-# 9. Cross-Field Consistency Check (Ensure Merchant-ID and Merchant-Name consistency)
-def generate_data_with_cross_field_consistency(num_records):
+# 9. Cross-Field Consistency (Inconsistent 'Merchant-ID' and 'Merchant-Name')
+def generate_cross_field_inconsistency(num_records):
     df = generate_baseline_data(num_records)
-    merchant_mapping = {f"MER-{i}": random.choice(merchant_names) for i in range(1000, 1015)}
-    df["Merchant-ID"] = [random.choice(list(merchant_mapping.keys())) for _ in range(num_records)]
-    df["Merchant-Name"] = df["Merchant-ID"].map(merchant_mapping)
+    # Introduce inconsistency between 'Merchant-ID' and 'Merchant-Name'
+    if num_records > 1:
+        df.loc[1, "Merchant-Name"] = "Inconsistent Merchant"
     return df
 
-cross_field_consistency_data = generate_data_with_cross_field_consistency(100)
-cross_field_consistency_data.to_csv(os.path.join(output_directory, "9_cross_field_consistency.csv"), index=False)
+cross_field_inconsistency_data = generate_cross_field_inconsistency(100)
+cross_field_inconsistency_data.to_csv(os.path.join(output_directory, "9_cross_field_consistency.csv"), index=False)
+
+# 10. Duplicate Records (for Uniqueness Constraints)
+def generate_data_with_duplicates(num_records):
+    df = generate_baseline_data(num_records)
+    # Introduce a duplicate in Transaction-Reference
+    if num_records > 1:
+        df.loc[1, "Transaction-Reference"] = df.loc[0, "Transaction-Reference"]
+    return df
+
+duplicate_data = generate_data_with_duplicates(100)
+duplicate_data.to_csv(os.path.join(output_directory, "10_duplicates.csv"), index=False)
+
+# 11. Field Dependency Testing ('Transaction-Amount' affecting 'Account-Balance')
+def generate_data_with_field_dependency(num_records):
+    df = generate_baseline_data(num_records)
+    for i in range(num_records):
+        if df.loc[i, "Transaction-Type"] == "Debit":
+            df.loc[i, "Account-Balance"] -= df.loc[i, "Transaction-Amount"]
+            if df.loc[i, "Account-Balance"] < 0:
+                df.loc[i, "Account-Balance"] = 0  # Ensure no negative balances
+    return df
+
+field_dependency_data = generate_data_with_field_dependency(100)
+field_dependency_data.to_csv(os.path.join(output_directory, "11_field_dependency.csv"), index=False)
+
+# 12. Invalid Transaction Status Values
+def generate_data_with_invalid_status(num_records):
+    df = generate_baseline_data(num_records)
+    invalid_statuses = ["Processing", "Unknown", "Cancelled"]
+    df.loc[random.randint(0, num_records-1), "Transaction-Status"] = random.choice(invalid_statuses)
+    return df
+
+invalid_status_data = generate_data_with_invalid_status(100)
+invalid_status_data.to_csv(os.path.join(output_directory, "12_invalid_status.csv"), index=False)
 
 print(f"Sample data files have been saved to '{output_directory}' directory.")
