@@ -1,0 +1,151 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Core Infrastructure Template for Fintech Data Quality Assurance Pipeline.
+
+Parameters:
+  RawDataBucketName:
+    Type: String
+    Description: The name for the raw transaction data bucket.
+  DataQualityLogsBucketName:
+    Type: String
+    Description: The name for the data quality logs bucket.
+
+Resources:
+  S3BucketRawData:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref RawDataBucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      Tags:
+        - Key: Name
+          Value: RawTransactionDataBucket
+
+  S3BucketDataQualityLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataQualityLogsBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveOrDeleteLogs
+            Status: Enabled
+            ExpirationInDays: 90
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: GLACIER
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName: !Ref DataQualityLogsBucketName
+        LogFilePrefix: "logs/"
+      Tags:
+        - Key: Name
+          Value: DataQualityLogsBucket
+
+  IAMRoleSoftwareEngineeringTeam:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: SoftwareEngineeringTeamRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SoftwareEngineeringTeamS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:PutObjectAcl
+                Resource:
+                  - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
+
+  IAMRoleDataEngineeringTeam:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: DataEngineeringTeamRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DataEngineeringTeamS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/schema-changes/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/validation-logs/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/alerts/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}'
+
+  IAMRoleLambda:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/schema-changes/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/validation-logs/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/alerts/*'
+
+Outputs:
+  S3BucketRawDataName:
+    Description: Name of the Raw Transaction Data Bucket
+    Value: !Ref S3BucketRawData
+
+  S3BucketDataQualityLogsName:
+    Description: Name of the Data Quality Logs Bucket
+    Value: !Ref S3BucketDataQualityLogs
+
+  IAMRoleSoftwareEngineeringTeamName:
+    Description: IAM Role for the Software Engineering Team
+    Value: !Ref IAMRoleSoftwareEngineeringTeam
+
+  IAMRoleDataEngineeringTeamName:
+    Description: IAM Role for the Data Engineering Team
+    Value: !Ref IAMRoleDataEngineeringTeam
+
+  IAMRoleLambdaName:
+    Description: IAM Role for the Lambda Function
+    Value: !Ref IAMRoleLambda
