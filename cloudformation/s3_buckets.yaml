@@ -1,0 +1,99 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: S3 Raw Data Bucket and S3 Data Quality Log Bucket for Fintech Data Quality Assurance Pipeline.
+
+Parameters:
+  RawDataBucketName:
+    Type: String
+    Description: The name for the raw transaction data bucket.
+
+  DataQualityLogsBucketName:
+    Type: String
+    Description: The name for the data quality logs bucket.
+
+  ProjectName:
+    Type: String
+    Description: Name of the project
+    Default: DataQualityPipeline
+
+Resources:
+  S3BucketRawData:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref RawDataBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LoggingConfiguration:
+        DestinationBucketName: !Ref DataQualityLogsBucketName
+        LogFilePrefix: !Sub "raw-data-logs/"
+      Tags:
+        - Key: Name
+          Value: RawTransactionDataBucket
+        - Key: Project
+          Value: !Ref ProjectName
+
+  S3BucketDataQualityLogs:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref DataQualityLogsBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ArchiveOrDeleteLogs
+            Status: Enabled
+            ExpirationInDays: 90
+            Transitions:
+              - TransitionInDays: 30
+                StorageClass: GLACIER
+      Tags:
+        - Key: Name
+          Value: DataQualityLogsBucket
+        - Key: Project
+          Value: !Ref ProjectName
+
+  DataQualityLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataQualityLogsBucketName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowS3LoggingWrite
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action: s3:PutObject
+            Resource:
+              - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/raw-data-logs/*'
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref "AWS::AccountId"
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:aws:s3:::${RawDataBucketName}'
+
+Outputs:
+  S3BucketRawDataName:
+    Description: Name of the Raw Transaction Data Bucket
+    Value: !Ref S3BucketRawData
+
+  S3BucketDataQualityLogsName:
+    Description: Name of the Data Quality Logs Bucket
+    Value: !Ref S3BucketDataQualityLogs

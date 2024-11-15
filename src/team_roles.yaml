@@ -1,0 +1,133 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: IAM Team Roles for the Fintech Data Quality Assurance Pipeline
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: DataQualityPipeline
+    Description: Name of the project
+  RawDataBucketArn:
+    Type: String
+    Description: ARN of the Raw Data Bucket
+  DataQualityLogsBucketArn:
+    Type: String
+    Description: ARN of the Data Quality Logs Bucket
+
+Resources:
+  IAMRoleSoftwareEngineeringTeam:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-SoftwareEngineeringTeamRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SoftwareEngineeringTeamAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: S3RawDataBasicAccess
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Ref RawDataBucketArn
+                  - !Sub '${RawDataBucketArn}/*'
+
+              - Sid: PreventRawDataModification
+                Effect: Deny
+                Action:
+                  - s3:DeleteObject*
+                  - s3:PutObjectAcl
+                  - s3:PutObjectVersionAcl
+                  - s3:DeleteObjectVersion
+                Resource:
+                  - !Sub '${RawDataBucketArn}/*'
+      Tags:
+        - Key: Purpose
+          Value: DataIngestion
+        - Key: Team
+          Value: SoftwareEngineering
+        - Key: Project
+          Value: !Ref ProjectName
+
+  IAMRoleDataEngineeringTeam:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-DataEngineeringTeamRole'
+      Description: 'IAM role for Data Engineering team with optimized S3 access patterns'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: DataEngineeringTeamS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: RawDataReadOnlyAccess
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Ref RawDataBucketArn
+                  - !Sub '${RawDataBucketArn}/*'
+
+              - Sid: DataQualityLogsAccess
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Ref DataQualityLogsBucketArn
+                  - !Sub '${DataQualityLogsBucketArn}/schema-changes/*'
+                  - !Sub '${DataQualityLogsBucketArn}/validation-logs/*'
+                  - !Sub '${DataQualityLogsBucketArn}/alerts/*'
+
+              - Sid: MetadataManagement
+                Effect: Allow
+                Action:
+                  - s3:GetObjectTagging
+                  - s3:PutObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:ListBucketVersions
+                Resource:
+                  - !Sub '${DataQualityLogsBucketArn}/*'
+
+              - Sid: ExplicitDenyLogsFolder
+                Effect: Deny
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub '${DataQualityLogsBucketArn}/raw-data-logs/*'
+      Tags:
+        - Key: Purpose
+          Value: DataQualityManagement
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Team
+          Value: DataEngineering
+
+Outputs:
+  SoftwareEngineeringTeamRoleARN:
+    Value: !GetAtt IAMRoleSoftwareEngineeringTeam.Arn
+    Export:
+      Name: SoftwareEngineeringTeamRoleARN
+
+  DataEngineeringTeamRoleARN:
+    Value: !GetAtt IAMRoleDataEngineeringTeam.Arn
+    Export:
+      Name: DataEngineeringTeamRoleARN

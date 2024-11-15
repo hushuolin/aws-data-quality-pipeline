@@ -1,28 +1,30 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: AWS Glue Data Crawler and Data Catalog for Fintech Data Quality Assurance Pipeline.
+Description: Glue Crawler Template for Fintech Data Quality Assurance Pipeline.
 
 Parameters:
   RawDataBucketName:
     Type: String
     Description: The name for the raw transaction data bucket.
-  CrawlerName:
+
+  GlueDatabaseName:
     Type: String
-    Description: Name of the Glue Crawler
+    Description: The name for the Glue Data Catalog database.
+
+  GlueCrawlerName:
+    Type: String
     Default: FintechDataCrawler
-  DatabaseName:
+    Description: Name for the Glue Crawler.
+
+  ProjectName:
     Type: String
-    Description: Name of the Glue Database
-    Default: FintechDataCatalog
-  RoleName:
-    Type: String
-    Description: Name of the IAM Role
-    Default: GlueCrawlerRole
+    Description: Name of the project
+    Default: DataQualityPipeline
 
 Resources:
   GlueCrawlerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${RoleName}-${AWS::StackName}
+      RoleName: !Sub '${ProjectName}-GlueCrawlerRole'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -53,39 +55,37 @@ Resources:
                   - glue:GetDatabases
                   - glue:BatchCreatePartition
                   - glue:GetPartitions
-                Resource: '*'
+                Resource:
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabaseName}'
+                  - !Sub 'arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${GlueDatabaseName}/*'
 
-  GlueCrawler:
-    Type: AWS::Glue::Crawler
-    Properties:
-      Name: FintechDataCrawler
-      Role: !GetAtt GlueCrawlerRole.Arn
-      DatabaseName: FintechDataCatalog
-      Targets:
-        S3Targets:
-          - Path: !Sub 's3://${RawDataBucketName}/'
-      Schedule:
-        ScheduleExpression: "cron(0 0 * * ? *)" # Scheduled to run daily at midnight
-      SchemaChangePolicy:
-        UpdateBehavior: UPDATE_IN_DATABASE
-        DeleteBehavior: DELETE_FROM_DATABASE
-
-  GlueDataCatalogDatabase:
+  GlueDatabase:
     Type: AWS::Glue::Database
     Properties:
       CatalogId: !Ref "AWS::AccountId"
       DatabaseInput:
-        Name: fintech_data_catalog
+        Name: !Ref GlueDatabaseName
+
+  GlueCrawler:
+    Type: AWS::Glue::Crawler
+    DependsOn: GlueDatabase 
+    Properties:
+      Name: !Ref GlueCrawlerName
+      Role: !GetAtt GlueCrawlerRole.Arn
+      DatabaseName: !Ref GlueDatabaseName
+      Targets:
+        S3Targets:
+          - Path: !Sub 's3://${RawDataBucketName}/'
+      SchemaChangePolicy:
+        UpdateBehavior: UPDATE_IN_DATABASE
+        DeleteBehavior: DELETE_FROM_DATABASE
 
 Outputs:
   GlueCrawlerName:
     Description: Name of the AWS Glue Crawler
     Value: !Ref GlueCrawler
 
-  GlueCrawlerRoleName:
-    Description: IAM Role used by the Glue Crawler
-    Value: !Ref GlueCrawlerRole
-
-  GlueDataCatalogDatabaseName:
+  GlueDatabaseName:
     Description: Name of the Glue Data Catalog Database
-    Value: !Ref GlueDataCatalogDatabase
+    Value: !Ref GlueDatabase
