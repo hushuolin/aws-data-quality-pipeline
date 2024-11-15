@@ -5,29 +5,52 @@ Parameters:
   RawDataBucketName:
     Type: String
     Description: The name for the raw transaction data bucket.
+
   DataQualityLogsBucketName:
     Type: String
     Description: The name for the data quality logs bucket.
+
+  ProjectName:
+    Type: String
+    Description: Name of the project
+    Default: DataQualityPipeline
 
 Resources:
   S3BucketRawData:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref RawDataBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       VersioningConfiguration:
         Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: AES256
+      LoggingConfiguration:
+        DestinationBucketName: !Ref DataQualityLogsBucketName
+        LogFilePrefix: !Sub "raw-data-logs/"
       Tags:
         - Key: Name
           Value: RawTransactionDataBucket
+        - Key: Project
+          Value: !Ref ProjectName
 
   S3BucketDataQualityLogs:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref DataQualityLogsBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
@@ -40,74 +63,143 @@ Resources:
             Transitions:
               - TransitionInDays: 30
                 StorageClass: GLACIER
-      VersioningConfiguration:
-        Status: Enabled
-      LoggingConfiguration:
-        DestinationBucketName: !Ref DataQualityLogsBucketName
-        LogFilePrefix: "logs/"
       Tags:
         - Key: Name
           Value: DataQualityLogsBucket
+        - Key: Project
+          Value: !Ref ProjectName
 
+  DataQualityLogsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref DataQualityLogsBucketName
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowS3LoggingWrite
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action: s3:PutObject
+            Resource: 
+              - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/raw-data-logs/*'
+            Condition:
+              StringEquals: 
+                aws:SourceAccount: !Ref "AWS::AccountId"
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:aws:s3:::${RawDataBucketName}'
+                
   IAMRoleSoftwareEngineeringTeam:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: SoftwareEngineeringTeamRole
+      RoleName: !Sub '${ProjectName}-SoftwareEngineeringTeamRole'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              AWS: "*"
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: SoftwareEngineeringTeamS3Access
+        - PolicyName: SoftwareEngineeringTeamAccess
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
+              - Sid: S3RawDataBasicAccess
+                Effect: Allow
                 Action:
+                  - s3:ListBucket
+                  - s3:GetObject
                   - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${RawDataBucketName}'
+                  - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
+
+              - Sid: PreventRawDataModification
+                Effect: Deny
+                Action:
+                  - s3:DeleteObject*
                   - s3:PutObjectAcl
+                  - s3:PutObjectVersionAcl
+                  - s3:DeleteObjectVersion
                 Resource:
                   - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
+      Tags:
+        - Key: Purpose
+          Value: DataIngestion
+        - Key: Team
+          Value: SoftwareEngineering
+        - Key: Project
+          Value: DataQualityPipeline
 
   IAMRoleDataEngineeringTeam:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: DataEngineeringTeamRole
+      RoleName: !Sub '${ProjectName}-DataEngineeringTeamRole'
+      Description: 'IAM role for Data Engineering team with optimized S3 access patterns'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
-              AWS: "*"
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
             Action: sts:AssumeRole
       Policies:
         - PolicyName: DataEngineeringTeamS3Access
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObject
-                  - s3:PutObject
-                Resource:
-                  - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
-              - Effect: Allow
+              - Sid: RawDataReadOnlyAccess
+                Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
+                  - !Sub 'arn:aws:s3:::${RawDataBucketName}'
+                  - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
+
+              - Sid: DataQualityLogsAccess
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}'
                   - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/schema-changes/*'
                   - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/validation-logs/*'
                   - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/alerts/*'
-                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}'
+
+              - Sid: MetadataManagement
+                Effect: Allow
+                Action:
+                  - s3:GetObjectTagging
+                  - s3:PutObjectTagging
+                  - s3:GetObjectVersion
+                  - s3:ListBucketVersions
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/*'
+
+              - Sid: ExplicitDenyLogsFolder
+                Effect: Deny
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/raw-data-logs/*'
+      Tags:
+        - Key: Purpose
+          Value: DataQualityManagement
+        - Key: Project
+          Value: DataQualityPipeline
+        - Key: Team
+          Value: DataEngineering
 
   IAMRoleLambda:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: LambdaRole
+      RoleName: !Sub '${ProjectName}-lambda-role'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -115,19 +207,36 @@ Resources:
             Principal:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         - PolicyName: LambdaS3Access
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
-              - Effect: Allow
+              - Sid: S3WriteAccess
+                Effect: Allow
                 Action:
                   - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/schema-changes/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/validation-logs/*'
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/alerts/*'
+              - Sid: S3ReadAccess
+                Effect: Allow
+                Action:
                   - s3:GetObject
                 Resource:
                   - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/schema-changes/*'
                   - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/validation-logs/*'
                   - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}/alerts/*'
+              - Sid: S3ListAccess
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${DataQualityLogsBucketName}'
+
 
 Outputs:
   S3BucketRawDataName:

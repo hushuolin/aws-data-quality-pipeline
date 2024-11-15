@@ -2,6 +2,8 @@
 
 # Description: Script to deploy the Core Infrastructure CloudFormation Stack
 
+set -e  # Exit immediately if a command exits with a non-zero status
+
 STACK_NAME="CoreInfraStack"
 TEMPLATE_FILE="cloudformation/core_infrastructure.yaml"
 AWS_REGION="us-east-1"
@@ -18,10 +20,23 @@ aws cloudformation deploy \
   --parameter-overrides RawDataBucketName=$RAW_DATA_BUCKET_NAME DataQualityLogsBucketName=$DATA_QUALITY_LOGS_BUCKET_NAME \
   --capabilities CAPABILITY_NAMED_IAM
 
-# Check deployment status
-if [ $? -eq 0 ]; then
-  echo "CloudFormation stack $STACK_NAME deployed successfully."
-else
-  echo "Failed to deploy CloudFormation stack $STACK_NAME."
-  exit 1
-fi
+echo "CloudFormation stack $STACK_NAME deployed successfully."
+
+# Initialize folder structure
+echo "Initializing folder structure..."
+
+# Data quality logs bucket folders
+FOLDERS=(
+  "schema-changes/"
+  "validation-logs/"
+  "alerts/"
+  "raw-data-logs/"
+)
+
+# Create folders
+for folder in "${FOLDERS[@]}"; do
+  echo "Creating folder: ${folder}"
+  aws s3api put-object --bucket "${DATA_QUALITY_LOGS_BUCKET_NAME}" --key "${folder}"
+done
+
+echo "Folder structure initialization complete."
