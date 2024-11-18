@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template for EventBridge RuleGlue-to-EventBus-and-CloudWatch
+
+Parameters:
+  TargetAccountId:
+    Type: String
+    Description: Target AWS Account ID
+
+  TargetRegion:
+    Type: String
+    Description: Target AWS Region
+
+  TargetEventBus:
+    Type: String
+    Default: "default"
+    Description: Target AWS Event Bus Name
+
+  CloudWatchLogGroupArn:
+    Type: String
+    Default: "arn:aws:logs:us-east-1:742465305217:log-group:/aws/events/EventBridgeLogs:*"
+    Description: CloudWatch Log Group Arn
+  
+Resources:
+  EventBridgeIAMrole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: PutEventsDestinationBus
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'events:PutEvents'
+                Resource: !Sub "arn:aws:events:${TargetRegion}:${TargetAccountId}:event-bus/${TargetEventBus}"
+
+  EventBridgeRule:
+    Type: 'AWS::Events::Rule'
+    DependsOn: 
+      - EventBridgeIAMrole
+    Properties:
+      Name: Glue-to-EventBus-and-CloudWatch
+      Description: Capture Glue Data Catalog Table State Changes
+      State: ENABLED
+      EventBusName: default
+      EventPattern:
+        source:
+          - "aws.glue"
+        detail-type:
+          - "Glue Data Catalog Database State Change"
+          - "Glue Data Catalog Table State Change"
+        detail:
+          typeOfChange:
+            - "CreateTable"
+            - "DeleteTable"
+            - "BatchDeleteTable"
+            - "UpdateTable"
+            - "CreatePartition"
+            - "DeletePartition"
+            - "BatchCreatePartition"
+            - "BatchDeletePartition"
+            - "UpdatePartition"
+            - "BatchUpdatePartition"
+      Targets:
+        - Id: 'DestinationEventBus'
+          Arn: !Sub "arn:aws:events:${TargetRegion}:${TargetAccountId}:event-bus/${TargetEventBus}"
+          RoleArn: !GetAtt EventBridgeIAMrole.Arn
+        - Id: 'EventBridgeLogs'
+          Arn: !Ref CloudWatchLogGroupArn
