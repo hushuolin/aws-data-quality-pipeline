@@ -2,20 +2,19 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: S3 Raw Data Bucket and S3 Data Quality Log Bucket for Fintech Data Quality Assurance Pipeline.
 
 Parameters:
-  DataQualityBucketName:
+  SchemaDetectionBucketName:
     Type: String
-    Description: The name for the data quality bucket.
+    Description: The name for the schema detection bucket.
 
   ProjectName:
     Type: String
     Description: Name of the project
-    Default: DataQualityPipeline
 
 Resources:
-  S3BucketDataQuality:
+  S3BucketSchemaDetection:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref DataQualityBucketName
+      BucketName: !Ref SchemaDetectionBucketName
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -36,16 +35,7 @@ Resources:
               - TransitionInDays: 30
                 StorageClass: GLACIER
       Tags:
-        - Key: Name
-          Value: DataQualityBucket
         - Key: Project
           Value: !Ref ProjectName
-          
-Outputs:
-  S3BucketRawDataName:
-    Description: Name of the Raw Transaction Data Bucket
-    Value: !Ref S3BucketRawData
-
-  S3BucketDataQualityLogsName:
-    Description: Name of the Data Quality Logs Bucket
-    Value: !Ref S3BucketDataQualityLogs
+        - Key: Name
+          Value: !Ref SchemaDetectionBucketName
