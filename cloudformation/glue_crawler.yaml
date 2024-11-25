@@ -2,9 +2,13 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: Glue Crawler Template for Fintech Data Quality Assurance Pipeline.
 
 Parameters:
-  RawDataBucketName:
+  ProjectName:
     Type: String
-    Description: The name for the raw transaction data bucket.
+    Description: Name of the project
+
+  SchemaDetectionBucketName:
+    Type: String
+    Description: The name for the scheme detection bucket.
 
   GlueDatabaseName:
     Type: String
@@ -12,13 +16,7 @@ Parameters:
 
   GlueCrawlerName:
     Type: String
-    Default: FintechDataCrawler
     Description: Name for the Glue Crawler.
-
-  ProjectName:
-    Type: String
-    Description: Name of the project
-    Default: DataQualityPipeline
 
 Resources:
   GlueCrawlerRole:
@@ -42,8 +40,8 @@ Resources:
                   - s3:GetObject
                   - s3:ListBucket
                 Resource:
-                  - !Sub 'arn:aws:s3:::${RawDataBucketName}/*'
-                  - !Sub 'arn:aws:s3:::${RawDataBucketName}'
+                  - !Sub 'arn:aws:s3:::${SchemaDetectionBucketName}/*'
+                  - !Sub 'arn:aws:s3:::${SchemaDetectionBucketName}'
               - Effect: Allow
                 Action:
                   - glue:CreateTable
@@ -76,7 +74,7 @@ Resources:
       DatabaseName: !Ref GlueDatabaseName
       Targets:
         S3Targets:
-          - Path: !Sub 's3://${RawDataBucketName}/'
+          - Path: !Sub 's3://${SchemaDetectionBucketName}/'
       SchemaChangePolicy:
         UpdateBehavior: UPDATE_IN_DATABASE
         DeleteBehavior: DELETE_FROM_DATABASE

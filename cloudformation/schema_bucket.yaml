@@ -2,13 +2,13 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: S3 Raw Data Bucket and S3 Data Quality Log Bucket for Fintech Data Quality Assurance Pipeline.
 
 Parameters:
-  SchemaDetectionBucketName:
-    Type: String
-    Description: The name for the schema detection bucket.
-
   ProjectName:
     Type: String
     Description: Name of the project
+
+  SchemaDetectionBucketName:
+    Type: String
+    Description: The name for the schema detection bucket.
 
 Resources:
   S3BucketSchemaDetection:
