@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation template to create a custom Event Bus in the target region.
+
+Parameters:
+  EventBusName:
+    Type: String
+    Default: "custom-event-bus"
+    Description: Name of the custom Event Bus
+
+Resources:
+  CustomEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Ref EventBusName
+
+Outputs:
+  CustomEventBusArn:
+    Description: The ARN of the custom Event Bus.
+    Value: !GetAtt CustomEventBus.Arn

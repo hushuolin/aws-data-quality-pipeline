@@ -7,7 +7,7 @@ TEMPLATE_FILE="cloudformation/eventbridge_rule.yaml"
 STACK_NAME="EventBridgeCrossRegion"
 TARGET_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) # Get current account ID as Target'
 TARGET_REGION="us-west-2"
-TARGET_EVENT_BUS="default"
+TARGET_EVENT_BUS="custom-event-bus"
 LOG_RETENTION_DAYS=30
 
 # Dry run for template validation
