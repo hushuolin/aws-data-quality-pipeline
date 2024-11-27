@@ -92,20 +92,6 @@ Resources:
               ArnEquals:
                 aws:SourceArn: !Ref NotificationTopic
 
-  DLQPolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref DeadLetterQueue
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !GetAtt NotificationQueue.Arn
-            Action: sqs:SendMessage
-            Resource: !GetAtt DeadLetterQueue.Arn
-
   NotificationSubscription:
     Type: AWS::SNS::Subscription
     Properties:
