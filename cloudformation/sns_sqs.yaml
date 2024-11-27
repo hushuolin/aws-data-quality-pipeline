@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SNS and SQS for Glue Schema Change Notifications
+
+Parameters:
+  NotificationTopicName:
+    Type: String
+    Default: "GlueSchemaChangeNotifications"
+    Description: Name of the SNS Topic
+    AllowedPattern: "[a-zA-Z0-9_-]+"
+    ConstraintDescription: "Topic name can only contain letters, numbers, hyphens, and underscores"
+    MaxLength: 256
+
+  QueueName:
+    Type: String
+    Default: "GlueSchemaChangeQueue"
+    Description: Name of the SQS Queue
+    AllowedPattern: "[a-zA-Z0-9_-]+"
+    ConstraintDescription: "Queue name can only contain letters, numbers, hyphens, and underscores"
+    MaxLength: 80
+
+  MessageRetentionPeriod:
+    Type: Number
+    Default: 1209600
+    Description: Number of seconds to retain messages (max 14 days)
+    MinValue: 60
+    MaxValue: 1209600
+
+Resources:
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Ref NotificationTopicName
+      TopicName: !Ref NotificationTopicName
+      KmsMasterKeyId: alias/aws/sns
+      Tags:
+        - Key: Purpose
+          Value: GlueSchemaChangeNotifications
+
+  NotificationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Ref QueueName
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: !Ref MessageRetentionPeriod
+      SqsManagedSseEnabled: true
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: Purpose
+          Value: GlueSchemaChangeQueue
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "${QueueName}-DLQ"
+      VisibilityTimeout: 300
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Purpose
+          Value: GlueSchemaChangeDeadLetterQueue
+
+  SqsPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref NotificationQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt NotificationQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref NotificationTopic
+
+  DLQPolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref DeadLetterQueue
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: sqs.amazonaws.com
+            Action: sqs:SendMessage
+            Resource: !GetAtt DeadLetterQueue.Arn
+
+  NotificationSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn: !Ref NotificationTopic
+      Endpoint: !GetAtt NotificationQueue.Arn
+      RawMessageDelivery: true
+
+Outputs:
+  SnsTopicArn:
+    Description: ARN of the SNS Topic
+    Value: !Ref NotificationTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-TopicArn"
+
+  SnsTopicName:
+    Description: Name of the SNS Topic
+    Value: !GetAtt NotificationTopic.TopicName
+    Export:
+      Name: !Sub "${AWS::StackName}-TopicName"
+
+  SqsQueueUrl:
+    Description: URL of the SQS Queue
+    Value: !Ref NotificationQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-QueueUrl"
+
+  SqsQueueArn:
+    Description: ARN of the SQS Queue
+    Value: !GetAtt NotificationQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-QueueArn"
+
+  DeadLetterQueueUrl:
+    Description: URL of the Dead Letter Queue
+    Value: !Ref DeadLetterQueue
+    Export:
+      Name: !Sub "${AWS::StackName}-DLQUrl"
+
+  DeadLetterQueueArn:
+    Description: ARN of the Dead Letter Queue
+    Value: !GetAtt DeadLetterQueue.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-DLQArn"
