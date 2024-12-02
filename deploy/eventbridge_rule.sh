@@ -5,17 +5,10 @@ set -e
 # Variables
 TEMPLATE_FILE="cloudformation/eventbridge_rule.yaml"
 STACK_NAME="EventBridgeCrossRegion"
-TARGET_ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text) # Get current account ID as Target'
+TARGET_ACCOUNT_ID="742465305217"
 TARGET_REGION="us-west-2"
-TARGET_EVENT_BUS="custom-event-bus"
+TARGET_EVENT_BUS="Custom-EventBus"
 LOG_RETENTION_DAYS=30
-
-# Dry run for template validation
-aws cloudformation validate-template \
-  --template-body file://$TEMPLATE_FILE || {
-  echo "Template validation failed."
-  exit 1
-}
 
 # Deploy command
 aws cloudformation deploy \

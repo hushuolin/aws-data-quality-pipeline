@@ -2,10 +2,40 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudFormation template to create a custom Event Bus in the target region.
 
 Parameters:
+  AccountId:
+    Default: "742465305217"
+    Description: "AWS Account ID"
+    Type: String
+
   EventBusName:
     Type: String
-    Default: "custom-event-bus"
+    Default: "Custom-EventBus"
     Description: Name of the custom Event Bus
+
+  StatementId:
+    Default: "Custom-EventBus-StatementId"
+    Description: "Custom EventBus Policy StatementId"
+    Type: String
+
+  LogName:
+    Default: "/aws/events/custom-event-bus-loggroup"
+    Description: "Custom EventBus Log Group Name"
+    Type: String
+
+  EventRuleName:
+    Default: "Custom-EventBus-Event-Rule"
+    Description: "Event Bus Rule Name"
+    Type: String
+
+  GlueDatabaseName:
+    Type: String
+    Default: fintech_data_catalog
+    Description: Glue Database Name
+
+  SNSTopicName:
+    Default: "GlueSchemaChangeNotifications"
+    Description: "SNS Topic Name"
+    Type: String
 
 Resources:
   CustomEventBus:
@@ -13,7 +43,66 @@ Resources:
     Properties:
       Name: !Ref EventBusName
 
+  CustomEventBusPolicy:
+    Type: "AWS::Events::EventBusPolicy"
+    Properties:
+      EventBusName: !Ref CustomEventBus
+      Statement:
+        Action:
+          - "events:PutEvents"
+        Effect: "Allow"
+        Principal:
+          AWS:
+            - !Sub "arn:aws:iam::${AccountId}:root"
+        Condition:
+          ForAllValues:StringEquals:
+            events:detail-type:
+              - "Glue Data Catalog Table State Change"
+              - "Glue Data Catalog Database State Change"
+          StringEquals:
+            events:source: "aws.glue"
+        Resource: !GetAtt
+          - "CustomEventBus"
+          - "Arn"
+      StatementId: !Ref StatementId
+
+  CustomEventBusLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Ref LogName
+      RetentionInDays: 120
+
+  CustomEventBusRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Description: "Cross Region Event Bus Rule"
+      EventBusName: !Ref CustomEventBus
+      EventPattern:
+        source:
+          - "aws.glue"
+        detail-type:
+          - "Glue Data Catalog Table State Change"
+          - "Glue Data Catalog Database State Change"
+        detail:
+          databaseName:
+            - !Ref GlueDatabaseName
+          typeOfChange:
+            - "UpdateTable"
+            - "CreateTable"
+      Name: !Sub "${EventRuleName}"
+      State: "ENABLED"
+      Targets:
+        - Arn: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SNSTopicName}"
+          Id: "CustomEventBusRuleSNSTarget"
+        - Arn: !GetAtt
+            - "CustomEventBusLogGroup"
+            - "Arn"
+          Id: "Custom-Event-Bus-Log-Group"
+
 Outputs:
-  CustomEventBusArn:
-    Description: The ARN of the custom Event Bus.
-    Value: !GetAtt CustomEventBus.Arn
+  CustomEventBus:
+    Value: !Ref CustomEventBus
+  CustomEventBusLogGroup:
+    Value: !Ref CustomEventBusLogGroup
+  CustomEventBusRule:
+    Value: !Ref CustomEventBusRule

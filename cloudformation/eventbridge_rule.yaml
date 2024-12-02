@@ -19,6 +19,11 @@ Parameters:
     Default: "default"
     Description: Target AWS Event Bus Name
 
+  GlueDatabaseName:
+    Type: String
+    Default: fintech_data_catalog
+    Description: Glue Database Name
+
   LogRetentionInDays:
     Type: Number
     Default: 30
@@ -82,6 +87,8 @@ Resources:
           - "Glue Data Catalog Database State Change"
           - "Glue Data Catalog Table State Change"
         detail:
+          databaseName:
+            - !Ref GlueDatabaseName
           typeOfChange:
             - "CreateTable"
             - "DeleteTable"
