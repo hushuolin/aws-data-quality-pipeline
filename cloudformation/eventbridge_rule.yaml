@@ -80,6 +80,7 @@ Resources:
       Description: Routes Glue Data Catalog Table State Changes Events to Target Region and Account for EventBus and to Target CloudWatch
       State: ENABLED
       EventBusName: default
+      RoleArn: !GetAtt EventBridgeIAMrole.Arn
       EventPattern:
         source:
           - "aws.glue"
@@ -91,15 +92,7 @@ Resources:
             - !Ref GlueDatabaseName
           typeOfChange:
             - "CreateTable"
-            - "DeleteTable"
-            - "BatchDeleteTable"
             - "UpdateTable"
-            - "CreatePartition"
-            - "DeletePartition"
-            - "BatchCreatePartition"
-            - "BatchDeletePartition"
-            - "UpdatePartition"
-            - "BatchUpdatePartition"
       Targets:
         - Id: 'DestinationEventBus'
           Arn: !Sub "arn:aws:events:${TargetRegion}:${TargetAccountId}:event-bus/${TargetEventBus}"

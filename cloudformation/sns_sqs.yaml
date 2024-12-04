@@ -29,12 +29,47 @@ Resources:
   NotificationTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Ref NotificationTopicName
+      DisplayName: Recieve Event Topic
       TopicName: !Ref NotificationTopicName
-      KmsMasterKeyId: alias/aws/sns
-      Tags:
-        - Key: Purpose
-          Value: GlueSchemaChangeNotifications
+      Subscription:
+        - Endpoint: "hu.shuo@northeastern.edu"
+          Protocol: "email"
+        - Endpoint: !GetAtt NotificationQueue.Arn
+          Protocol: "sqs"
+
+  NotificationTopicPolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "SNSPolicy"
+            Effect: "Allow"
+            Principal:
+              AWS: "*"
+            Action:
+              - "sns:AddPermission"
+              - "sns:DeleteTopic"
+              - "sns:GetTopicAttributes"
+              - "sns:ListSubscriptionsByTopic"
+              - "sns:Publish"
+              - "sns:SetTopicAttributes"
+              - "sns:Subscribe"
+              - "sns:Receive"
+              - "sns:RemovePermission"
+            Resource: !Ref "NotificationTopic"
+            Condition:
+              StringEquals:
+                AWS:SourceOwner: !Ref "AWS::AccountId"
+          - Sid: "EventAccess"
+            Effect: "Allow"
+            Principal:
+              Service: "events.amazonaws.com"
+            Action:
+              - "sns:Publish"
+            Resource: !Ref "NotificationTopic"
+      Topics:
+        - !Ref "NotificationTopic"
 
   NotificationQueue:
     Type: AWS::SQS::Queue
@@ -60,20 +95,6 @@ Resources:
       Tags:
         - Key: Purpose
           Value: GlueSchemaChangeDeadLetterQueue
-
-  NotificationTopicPolicy:
-    Type: AWS::SNS::TopicPolicy
-    Properties:
-      Topics:
-        - !Ref NotificationTopic
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: events.amazonaws.com
-            Action: "sns:Publish"
-            Resource: !Ref NotificationTopic
 
   SqsPolicy:
     Type: AWS::SQS::QueuePolicy

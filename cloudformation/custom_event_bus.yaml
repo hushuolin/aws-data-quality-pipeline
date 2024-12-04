@@ -43,6 +43,35 @@ Resources:
     Properties:
       Name: !Ref EventBusName
 
+  CustomEventBusRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: PublishSNS
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'sns:Publish'
+                Resource: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SNSTopicName}"
+        - PolicyName: PutLogsCloudWatch
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: !Sub "${CustomEventBusLogGroup.Arn}:*"
+
   CustomEventBusPolicy:
     Type: "AWS::Events::EventBusPolicy"
     Properties:
@@ -81,15 +110,16 @@ Resources:
         source:
           - "aws.glue"
         detail-type:
-          - "Glue Data Catalog Table State Change"
           - "Glue Data Catalog Database State Change"
+          - "Glue Data Catalog Table State Change"
         detail:
           databaseName:
             - !Ref GlueDatabaseName
           typeOfChange:
-            - "UpdateTable"
             - "CreateTable"
+            - "UpdateTable"
       Name: !Sub "${EventRuleName}"
+      RoleArn: !GetAtt CustomEventBusRole.Arn
       State: "ENABLED"
       Targets:
         - Arn: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${SNSTopicName}"
