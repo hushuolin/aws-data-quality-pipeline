@@ -113,13 +113,31 @@ Resources:
               ArnEquals:
                 aws:SourceArn: !Ref NotificationTopic
 
-  NotificationSubscription:
-    Type: AWS::SNS::Subscription
+  NotificationQueuePolicy:
+    Type: "AWS::SQS::QueuePolicy"
     Properties:
-      Protocol: sqs
-      TopicArn: !Ref NotificationTopic
-      Endpoint: !GetAtt NotificationQueue.Arn
-      RawMessageDelivery: true
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "RootAccountAccess"
+            Effect: "Allow"
+            Principal:
+              AWS: !Join ["", ["arn:aws:iam::", !Ref "AWS::AccountId", ":root"]]
+            Action:
+              - "sqs:*"
+            Resource: !GetAtt "NotificationQueue.Arn"
+          - Sid: "Topic-subscription"
+            Effect: "Allow"
+            Principal:
+              AWS: "*"
+            Action:
+              - "sqs:SendMessage"
+            Condition:
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${NotificationTopicName}"
+            Resource: !GetAtt "NotificationQueue.Arn"
+      Queues:
+        - !Ref "NotificationQueue"
 
 Outputs:
   SnsTopicArn:
