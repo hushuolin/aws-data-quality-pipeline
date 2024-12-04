@@ -3,7 +3,7 @@
 set -e  # Exit immediately if a command exits with a non-zero status
 
 # Variables
-TEMPLATE_FILE="cloudformation/sns_sqs.yaml"
+TEMPLATE_FILE="cloudformation/sns_sqs_lambda.yaml"
 STACK_NAME="GlueSchemaChangeNotification"
 REGION="us-west-2"
 NOTIFICATION_TOPIC_NAME="GlueSchemaChangeNotifications"

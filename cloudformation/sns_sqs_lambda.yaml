@@ -25,6 +25,16 @@ Parameters:
     MinValue: 60
     MaxValue: 1209600
 
+  SendEmailSNSName:
+    Default: "CrossRegion-Send-Email-Topic"
+    Description: "SNS Topic Name"
+    Type: "String"
+
+  FunctionName:
+    Default: "CrossRegion_Send_Email_Lambda"
+    Description: "Lambda Function Name"
+    Type: "String"
+
 Resources:
   NotificationTopic:
     Type: AWS::SNS::Topic
@@ -96,23 +106,6 @@ Resources:
         - Key: Purpose
           Value: GlueSchemaChangeDeadLetterQueue
 
-  SqsPolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref NotificationQueue
-      PolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: sns.amazonaws.com
-            Action: sqs:SendMessage
-            Resource: !GetAtt NotificationQueue.Arn
-            Condition:
-              ArnEquals:
-                aws:SourceArn: !Ref NotificationTopic
-
   NotificationQueuePolicy:
     Type: "AWS::SQS::QueuePolicy"
     Properties:
@@ -138,6 +131,118 @@ Resources:
             Resource: !GetAtt "NotificationQueue.Arn"
       Queues:
         - !Ref "NotificationQueue"
+
+  SendEmailSNS:
+    Type: "AWS::SNS::Topic"
+    Properties:
+      DisplayName: "Send Email Topic"
+      Subscription:
+        - Endpoint: "hu.shuo@northeastern.edu"
+          Protocol: "email"
+      TopicName: !Ref "SendEmailSNSName"
+
+  SendEmailSNSPolicy:
+    Type: "AWS::SNS::TopicPolicy"
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "AccountAccess"
+            Effect: "Allow"
+            Principal:
+              AWS: "*"
+            Action:
+              - "SNS:GetTopicAttributes"
+              - "SNS:SetTopicAttributes"
+              - "SNS:AddPermission"
+              - "SNS:RemovePermission"
+              - "SNS:DeleteTopic"
+              - "SNS:Subscribe"
+              - "SNS:ListSubscriptionsByTopic"
+              - "SNS:Publish"
+            Resource: !Ref "SendEmailSNS"
+            Condition:
+              StringEquals:
+                AWS:SourceOwner: "742465305217"
+          - Sid: "LambdaAccess"
+            Effect: "Allow"
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action:
+              - "sns:Publish"
+            Resource: !Ref "SendEmailSNS"
+      Topics:
+        - !Ref "SendEmailSNS"
+
+  SendEmailLambda:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      Architectures:
+        - "x86_64"
+      Code:
+        S3Bucket: "us-west-2-email-lambda-functions"
+        S3Key: "email_lambda.zip"
+      Description: "Email lambda using CFT"
+      EphemeralStorage:
+        Size: 1024
+      FunctionName: !Ref "FunctionName"
+      Handler: "send_email_lambda.lambda_handler"
+      MemorySize: 128
+      PackageType: "Zip"
+      Role: !GetAtt "SendEmailLambdaRole.Arn"
+      Runtime: "python3.10"
+      Timeout: 120
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref "SendEmailSNS"
+
+  SendEmailLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Policies:
+        - PolicyName: "EmailLambdaAccess"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: "LogAccess"
+                Effect: "Allow"
+                Action:
+                  - "logs:*"
+                Resource: "arn:aws:logs:*:*:*"
+              - Sid: "SQSAccess"
+                Effect: "Allow"
+                Action:
+                  - "sqs:DeleteMessage"
+                  - "sqs:GetQueueUrl"
+                  - "sqs:ChangeMessageVisibility"
+                  - "sqs:ReceiveMessage"
+                  - "sqs:GetQueueAttributes"
+                Resource: !GetAtt "NotificationQueue.Arn"
+              - Sid: "SNSPermission"
+                Effect: "Allow"
+                Action:
+                  - "sns:Publish"
+                Resource: !Ref "SendEmailSNS"
+      RoleName: "CrossRegion-Email-Lambda-Role"
+
+  SQSEventSourceMapping:
+    Type: "AWS::Lambda::EventSourceMapping"
+    DependsOn:
+      - "NotificationQueue"
+      - "SendEmailLambda"
+    Properties:
+      Enabled: true
+      EventSourceArn: !GetAtt "NotificationQueue.Arn"
+      FunctionName: !GetAtt "SendEmailLambda.Arn"
 
 Outputs:
   SnsTopicArn:
